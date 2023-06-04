@@ -1,0 +1,187 @@
+---
+title: "stat554_hw1_esrasekerci_2141992"
+output: html_document
+date: "2023-05-05"
+---
+
+# exercise 3.1
+
+```{r}
+# Define a function to generate random samples from the two-parameter exponential distribution Exp(λ, η)
+# n: number of samples to generate
+# lambda: rate parameter
+# eta: location parameter
+exp_fn <- function(n, lambda, eta) {
+  u <- runif(n)  # generate n random numbers from a uniform distribution between 0 and 1
+  x <- -log(1 - u*(1 - exp(-lambda*eta))) / lambda   # Compute the random samples using the inverse transform method
+  return(x)  # return the generated samples
+}
+```
+
+```{r}
+# Set the values of lambda and eta
+lambda <- 2
+eta <- 1
+x <- exp_fn(1000, lambda, eta) # generate 1000 random samples from Exp(λ, η) using the exp_fn function
+p <- seq(0.1, 0.9, 0.1) # compute the quantiles for p values ranging from 0.1 to 0.9 with an increment of 0.1
+Q <- -log(1-p)/lambda+eta # compute the theoretical quantiles using the formula Q = -log(1-p)/λ + η
+xq <- quantile(x, p) # compute the empirical quantiles from the generated samples using the quantile function
+print(round(rbind(Q, xq), 3)) # print the theoretical and empirical quantiles side by side
+```
+
+In summary, the code defines a function exp_fn to generate random samples from the two-parameter exponential distribution. It then uses this function to generate 1000 random samples with given values of lambda and eta. Next, it computes the theoretical quantiles and empirical quantiles for different probabilities (p values) using formulas and the quantile function, respectively. Finally, it prints the theoretical and empirical quantiles side by side.
+
+# exercise 3.7
+
+```{r}
+# Define a function to generate random samples from the beta distribution
+# n: number of samples to generate
+# a: shape parameter
+# b: shape parameter
+beta_fn <- function(n, a, b){
+  k <- 0 # initialize counter for accepted samples
+  y <- numeric(n) # create a vector of length n to store accepted samples
+  while(k < n){ # while less than n accepted samples
+    u <- runif(1)
+    x <- runif(1)
+    if (x^(a-1) * (1-x)^(b-1) > u){ # if the ratio of the beta density to the uniform density is greater than the uniform random variable
+      k <- k+1 # increment the counter
+      y[k] <- x # store the accepted sample
+    }
+  }
+  return(y) # return the vector of accepted samples
+}
+```
+
+```{r}
+y <- beta_fn(1000, 3, 2) # generate 1000 random samples from the beta distribution using the beta_fn function
+hist(y, breaks = "Scott", prob = T, ylim = c(0,2)) # plot a histogram of the generated samples
+z <- seq(0, 1, 0.01) # create a sequence of values from 0 to 1 with an increment of 0.01
+fz <- 12 * z^2 * (1-z) # compute the density function values for the beta distribution at each value in z
+lines(z, fz) # add a line to the plot representing the computed density function
+```
+
+In summary, the code defines a function beta_fn to generate random samples from the beta distribution using the rejection sampling method. It then uses this function to generate 1000 random samples with given shape parameters. Next, it plots a histogram of the generated samples and sets the y-axis limits to be between 0 and 2. It then creates a sequence of values from 0 to 1 and computes the density function values for the beta distribution at each value in the sequence. Finally, it adds a line to the plot representing the computed density function.
+
+
+# exercise 3.18
+
+```{r}
+# Function to generate a random sample from a Wishart distribution based on Bartlett's decomposition
+# Sigma: scale matrix
+# n: degrees of freedom
+wish_fn <- function(Sigma, n){
+  d <- nrow(Sigma) # dimension of the scale matrix
+  u <- chol(Sigma)   # Cholesky decomposition of the scale matrix
+  y <- matrix(0, d, d) # initialize a matrix to store random values
+  for(j in 1:d){
+    for (i in j:d) y[i, j] <- rnorm(1) # generate random values for the lower-triangular matrix
+    y[j, j] <- sqrt(rchisq(1, n - i + 1)) # generate random value for diagonal elements
+  }
+  A <- t(u) %*% y %*% y %*% t(u) # compute the sample covariance matrix
+  return(A) # return the sample covariance matrix
+}
+```
+
+```{r}
+# Function to generate a random sample of Wishart matrices
+# n: number of samples to generate
+# Sigma: scale matrix
+# nu: degrees of freedom
+wish_fn2 <- function(n, Sigma, nu){
+  w <- replicate(n, wish_fn(Sigma, nu))  # generate n samples using wish_fn function
+  return(array(w, dim = c(dim(Sigma), n))) # return an array of the samples
+}
+```
+
+```{r}
+# Example usage
+n <- 3
+Sigma <- matrix(c(1, 0.5, 0.2, 0.5, 1, 0.3, 0.2, 0.3, 1), nrow = 3)
+nu <- 50
+
+sample <- wish_fn2(n, Sigma, nu)
+
+# Print the first sample covariance matrix
+print(sample[,,1])
+```
+
+This code defines two functions: wish_fn to generate a random sample from a Wishart distribution using Bartlett's decomposition, and wish_fn2 to generate multiple random samples. It then demonstrates the usage of these functions by generating a random sample of Wishart matrices using the provided values for the number of samples, scale matrix, and degrees of freedom. Finally, it prints the first sample covariance matrix from the generated sample.
+
+# exercise 4.10
+
+```{r}
+# Function to compute Andrews curve for a vector
+fn <- function(v, a) {
+  d <- length(v) # get the length of the vector
+  y <- v[1] / sqrt(2) # initialize y with the first element of the vector
+  for (i in 2:d) { # iterate over the elements of the vector starting from the second element
+    j <- i * 2
+    if (i %% 2 == 0) { # check if i is even
+      y <- y + v[i] * cos(j * a)
+    } else {
+      y <- y + v[i] * sin(j * a)
+    }
+  }
+  return(y)
+}
+```
+
+```{r}
+# Compute Andrews curve for the iris dataset
+a <- seq(-pi, pi, 0.1) # create a vector of angles ranging from -π to π in increments of 0.1
+x <- as.matrix(iris[, 1:4]) # extract columns 1 to 4 from the iris dataset and convert them to a matrix
+A <- apply(x, 1, fn, a = a) # apply the fn function to each row of x with argument a, resulting in the Andrews curve values
+
+# Plot the Andrews curves for the iris dataset
+plot(a, A[, 1], ylim = range(A), type = "l", main = "iris") # plot the first Andrews curve with appropriate limits and labels
+s <- as.integer(iris$Species) # convert the Species column of the iris dataset to integer values
+for (i in 2:nrow(x)) lines(a, A[, i], col = s[i], lty = 1) # add lines for the remaining Andrews curves with different colors based on the species
+legend("topleft", inset = 0.02, legend =1:3, col = 1:3, lty = 1)
+```
+
+```{r}
+library(MASS)
+attach(crabs)
+```
+
+```{r}
+# Compute Andrews curve for the crabs dataset
+x <- as.matrix(crabs[, 4:8]) # extract columns 4 to 8 from the crabs dataset and convert them to a matrix
+g <- rep(1:4, each = 50) # create a grouping variable for the colors in the plot
+A <- apply(x, 1, fn, a = a) # apply the fn function to each row of x with argument a, resulting in the Andrews curve values
+
+# Plot the Andrews curves for the crabs dataset
+plot(a, A[, 1], ylim = range(A), type = "l", main = "crabs") # plot the first Andrews curve with appropriate limits and labels
+for (i in 2:nrow(x)) lines(a, A[, i], col = g[i]) # add lines for the remaining Andrews curves with different colors
+legend("topleft", inset = 0.02, legend =1:4, col = 1:4, lty = 1)
+```
+
+```{r}
+detach(crabs)
+detach(package:MASS)
+palette("default")
+```
+
+The provided code generates Andrews curves for two datasets: iris and crabs. Andrews curves are a way to visualize high-dimensional data by representing each observation as a curve based on a trigonometric function. For the iris dataset, the code computes the Andrews curves by applying the fn function to each row of the dataset, using a sequence of angles. The resulting curves are then plotted, with each species represented by a different color. Similarly, for the crabs dataset, the code computes the Andrews curves for a subset of columns and plots them, with different colors representing different groups. In summary, the code utilizes the fn function to calculate the Andrews curves for each dataset and generates visual representations that capture the patterns and relationships within the data.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

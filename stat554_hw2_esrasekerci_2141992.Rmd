@@ -1,0 +1,78 @@
+---
+title: "stat554_hw2_esrasekerci_2141992"
+output: html_document
+date: "2023-05-29"
+---
+
+
+# exercise 5.2
+
+
+```{r}
+x <- seq(0.1, 2.5, length = 10)  # Create a sequence of values from 0.1 to 2.5 with 10 elements
+m <- 10000  # Define the number of simulations
+
+cdf <- numeric(length(x))  # Initialize an empty vector to store the cumulative distribution function (CDF) values
+
+for (i in 1:length(x)) {
+  u <- runif(m, 0, x[i])  # Generate m random uniform values between 0 and x[i]
+  g <- x[i] * exp(-(u^2)/2)  # Compute the values of the function g(u)
+  cdf[i] <- mean(g)/sqrt(2 * pi) + 0.5  # Compute the CDF estimate for the corresponding x[i]
+}
+Phi <- pnorm(x)  # Calculate the theoretical CDF values using the standard normal distribution function
+print(round(rbind(x, cdf, Phi), 3))  # Print the values of x, estimated CDF, and theoretical CDF
+```
+To estimate the variance of the MC estimate of Φ(2), replicate the experiment. Then apply the CLT to construct an approximate 95% confidence interval for Φ(2).
+
+```{r}
+est <- replicate(1000, expr = {
+  u <- runif(m, 0, 2)  # Generate m random uniform values between 0 and 2
+  g <- 2 * exp(-(u^2)/2)  # Compute the values of the function g(u)
+  mean(g)/sqrt(2 * pi) + 0.5  # Compute the estimate of the cumulative distribution function (CDF)
+})
+
+pnorm(2)  # Calculate the theoretical CDF value at 2 using the standard normal distribution function
+c(mean(est), sd(est))  # Calculate the mean and standard deviation of the estimated CDF values
+mean(est) + qnorm(c(0.025, 0.975)) * sd(est)  # Compute the 95% confidence interval for the estimated CDF mean
+```
+
+The estimated cumulative distribution function (CDF) at 2, obtained from the simulations, is approximately 0.977. This suggests that the probability of observing a value less than or equal to 2 in the distribution is around 0.977. The theoretical CDF value at 2, calculated using the standard normal distribution function, is approximately 0.977 as well. This confirms that the estimated CDF is close to the expected value.  The mean of the estimated CDF values across the 1000 simulations is approximately 0.977, which aligns with the theoretical value. The standard deviation of the estimated CDF values is relatively small, indicating that the estimates are consistent across the simulations. The 95% confidence interval for the estimated CDF mean is calculated to be approximately [0.973, 0.982]. This interval provides a range of plausible values for the true mean of the estimated CDF based on the variability observed in the simulations. Overall, the results suggest that the simulations provide a reliable estimate of the CDF at 2, which closely matches the theoretical value. The narrow confidence interval indicates a high level of confidence in the estimated mean of the CDF.
+
+
+
+# exercise 5.10
+
+The code performs Monte Carlo simulations using both the standard approach (mc) and the antithetic variates technique (anti). It then calculates the variances and means of the sample means obtained from each simulation, as well as the percentage reduction in variance between the two methods. This analysis provides insights into the efficiency and accuracy of the antithetic approach compared to the standard approach.
+
+```{r}
+m <- 10000
+mc <- replicate(1000, expr = {
+  u <- runif(m)
+  mean(exp(-u)/(1 + u^2))
+})
+anti <- replicate(1000, expr = {
+  u <- runif(m/2)
+  x1 <- exp(-u)/(1 + u^2)
+  x2 <- exp(-(1 - u))/(1 + (1 - u)^2)
+  mean(c(x1, x2))
+})
+var(mc)  # Calculate the variance of the sample means obtained using the mc function
+var(anti)  # Calculate the variance of the sample means obtained using the anti function
+mean(mc)  # Calculate the mean of the sample means obtained using the mc function
+mean(anti)  # Calculate the mean of the sample means obtained using the anti function
+100 * (var(mc) - var(anti))/var(mc)  # Calculate the percentage reduction in variance between mc and anti
+```
+
+These results suggest that the anti function performs better than the mc function in terms of reducing variance and producing more accurate sample means. The antithetic Monte Carlo simulation method is considered superior to the standard Monte Carlo simulation. It achieves this by significantly reducing the variance of the sample means, leading to more consistent and reliable estimates. The means obtained from both methods are comparable, indicating that they are centered around the true mean of the target function. However, the antithetic Monte Carlo simulation outperforms the standard method in terms of precision, as evidenced by the substantial percentage reduction in variance. This reduction in variance implies a higher level of accuracy and confidence in the results. Overall, the antithetic Monte Carlo simulation provides more precise and dependable estimates, making it a preferable choice in Monte Carlo simulations.
+
+
+
+
+
+
+
+
+
+
+
+
