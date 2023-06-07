@@ -1,0 +1,258 @@
+---
+title: "stat554_hw3&hw4_esrasekerci_2141992"
+output: html_document
+date: "2023-06-05"
+---
+
+
+# exercise 6.4
+
+Convert X to a normal distribution and approximate the value of µ using the sample mean of the transformed sample.
+
+```{r}
+n <- 30  # Sample size
+CI <- replicate(10000, expr = {
+  x <- rlnorm(n)  # Generate random samples from a log-normal distribution
+  y <- log(x)  # Take the natural logarithm of the samples
+  ybar <- mean(y)  # Calculate the sample mean of the transformed data
+  se <- sd(y) / sqrt(n)  # Calculate the standard error of the mean
+  ybar + se * qnorm(c(0.025, 0.975))  # Calculate the confidence interval using the normal approximation
+})
+
+LCL <- CI[1, ]  # Lower confidence limit for each iteration
+UCL <- CI[2, ]  # Upper confidence limit for each iteration
+
+sum(LCL < 0 & UCL > 0)
+
+mean(LCL < 0 & UCL > 0)
+```
+
+The code generates confidence intervals for the mean of log-transformed data from a log-normal distribution and assesses how well these intervals capture the true mean. The results provide valuable insights into the coverage properties of the intervals. The count and proportion of intervals that include the true mean indicate the accuracy and reliability of the intervals. A higher count and proportion suggest better coverage, implying that the intervals successfully capture the true mean more often. In summary, based on the Monte Carlo simulation, the constructed confidence intervals have an estimated coverage probability of approximately 93.8%, indicating that they are likely to contain the unknown parameter µ with a 95% confidence level.
+
+
+
+
+# exercise 6.7
+
+
+```{r}
+# Function to calculate skewness coefficient
+sk <- function(x) {
+  xbar <- mean(x)
+  m3 <- mean((x - xbar)^3)
+  m2 <- mean((x - xbar)^2)
+  return(m3/m2^1.5)
+}
+
+alpha <- 0.1 # Set the significance level
+n <- 30 # Set the sample size
+m <- 2500 # Set the number of simulations
+ab <- 1:10 # Set a range of shape parameters
+N <- length(ab) # Determine the number of shape parameters
+pwr <- numeric(N) # Create storage for the power values
+
+# Calculate the critical value for the given significance level
+cv <- qnorm(1 - alpha/2, 0, sqrt(6 * (n - 2)/((n + 1) * (n + 3))))
+
+# Perform the simulations for each shape parameter
+for (j in 1:N) {
+  a <- ab[j]
+  sktests <- numeric(m)
+  
+  # Simulate data and perform the skewness test
+  for (i in 1:m) {
+    x <- rbeta(n, a, a)
+    sktests[i] <- as.integer(abs(sk(x)) >= cv)
+  }
+  
+  # Calculate the power as the proportion of significant tests
+  pwr[j] <- mean(sktests)
+}
+
+pwr
+```
+The power values are relatively low, ranging from approximately 0.0120 to 0.0668. This suggests that the skewness test has limited ability to detect departures from normality when the data is generated from symmetric Beta distributions. As the shape parameter α increases, the power values tend to increase as well. This indicates that the skewness test becomes slightly more powerful in detecting departures from normality as the data becomes less symmetric. It's worth noting that the power values are generally low, indicating that the skewness test may not be effective for detecting deviations from normality when the underlying distribution is a symmetric Beta distribution.
+
+The symmetric beta alternatives are not normal, but beta is symmetric. This simulation illustrates that the skewness test of normality is not very effective against light-tailed symmetric alternatives. The empirical power of the test is not higher than the nominal significance level.
+
+Are the results different for heavy-tailed symmetric alternatives such as t(ν)?
+Yes, the skewness test is more effective against a heavy-tailed symmetric alternative, such as a Student t distribution. Below we repeat the simulation for several choices of degrees of freedom.
+
+```{r}
+alpha <- 0.1  # Set the significance level
+
+n <- 30  # Set the sample size
+
+m <- 2500  # Set the number of simulations
+
+df <- c(1:5, seq(10, 50, 10))  # Set the degrees of freedom
+
+N <- length(df)  # Determine the number of degrees of freedom
+
+pwr <- numeric(N)  # Create storage for the power values
+
+cv <- qnorm(1 - alpha/2, 0, sqrt(6 * (n - 2)/((n + 1) * (n + 3))))  # Calculate the critical value
+
+for (j in 1:N) {
+  nu <- df[j]
+  sktests <- numeric(m)
+  
+  for (i in 1:m) {
+    x <- rt(n, df = nu)
+    sktests[i] <- as.integer(abs(sk(x)) >= cv)
+  }
+  
+  pwr[j] <- mean(sktests)
+}
+
+data.frame(df, pwr)
+```
+
+The skewness test of normality is more powerful when the degrees of freedom are small. As degrees of freedom tend to infinity the t distribution tends to normal, and the power tends to α. One reason that the skewness test is more powerful in this case than against the symmetric beta distributions is that |√b1| is positively correlated with kurtosis. Kurtosis of beta distribution is less than the normal kurtosis, while kurtosis of t is greater than the normal kurtosis. A higher power is desirable as it suggests a higher likelihood of correctly identifying skewness in the t-distribution.
+
+For t-distributions with lower degrees of freedom (ranging from 1 to 5), the skewness test exhibits relatively high power values, ranging from 0.3376 to 0.8692. This indicates a strong ability to detect departures from normality in these cases. However, as the degrees of freedom increase (e.g., from 10 to 50), the power values decrease. In this range, the power values range from 0.1156 to 0.2008, suggesting that the skewness test becomes less effective in identifying deviations from normality as the t-distribution approaches normality with higher degrees of freedom.
+
+The higher power of the skewness test against the heavy-tailed symmetric t-distributions, compared to the symmetric beta distributions, can be attributed to several factors. One key reason is the positive correlation between the absolute value of the square root of skewness (√b1) and kurtosis. In the case of the beta distribution, the kurtosis is lower than the kurtosis of the normal distribution. On the other hand, the kurtosis of the t-distribution is higher than the kurtosis of the normal distribution. This difference in kurtosis affects the detectability of deviations from normality. The positive correlation between √b1 and kurtosis implies that when kurtosis is higher, as in the case of t-distributions, the skewness test becomes more powerful in identifying departures from normality. Conversely, when kurtosis is lower, as in the case of beta distributions, the skewness test is comparatively less powerful in detecting deviations from normality.
+
+
+# exercise 7.1
+
+
+```{r}
+library(bootstrap)  # Load the bootstrap package
+attach(law)        # Attach the 'law' dataset
+
+n <- nrow(law)    # Get the number of rows in the 'law' dataset
+theta.hat <- cor(LSAT, GPA)  # Calculate the estimated correlation between 'LSAT' and 'GPA' using the entire dataset
+
+theta.jack <- numeric(n)  # Create an empty numeric vector to store jackknife estimates
+for (i in 1:n) {
+  theta.jack[i] <- cor(LSAT[-i], GPA[-i])  # Calculate the jackknife estimate of the correlation by excluding one observation at a time
+}
+
+bias <- (n - 1) * (mean(theta.jack) - theta.hat)  # Calculate the bias of the estimated correlation using the jackknife estimates
+se <- sqrt((n - 1) * mean((theta.jack - mean(theta.jack))^2))  # Calculate the standard error of the estimated correlation using the jackknife estimates
+
+detach(law)        # Detach the 'law' dataset
+detach(package:bootstrap)  # Detach the 'bootstrap' package
+
+print(list(est = theta.hat, bias = bias, se = se))  # Print the estimated correlation, bias, and standard error
+```
+
+The result of the code provides estimates for the correlation between the variables 'LSAT' and 'GPA' in the 'law' dataset. Here is the interpretation of each result:
+
+- `est`: The estimated correlation between 'LSAT' and 'GPA' is 0.7763745. This value indicates the strength and direction of the linear relationship between the two variables. A positive correlation suggests that higher LSAT scores tend to be associated with higher GPA scores, while a negative correlation would indicate an inverse relationship.
+
+- `bias`: The bias of the estimated correlation is -0.006473623. Bias measures the systematic deviation of the estimated correlation from the true correlation in repeated sampling. A bias close to zero indicates that the estimation method is unbiased, meaning that on average, the estimated correlation is centered around the true correlation.
+
+- `se`: The standard error of the estimated correlation is 0.1425186. The standard error provides a measure of the variability or uncertainty associated with the estimated correlation. It indicates how much the estimated correlation might vary if the analysis is repeated on different samples. Smaller standard errors suggest more precise estimates.
+
+The jackknife approach allows for assessing the variability and accuracy of the correlation estimate by systematically leaving out individual observations. Overall, the results suggest that the estimated correlation between 'LSAT' and 'GPA' in the 'law' dataset is 0.7764. However, the estimate may be subject to a slight negative bias, indicating a tendency to overestimate the true correlation. The standard error reflects the variability around the estimate, indicating some level of uncertainty.
+
+
+
+
+# exercise 7.3
+
+
+Two methods are shown below. The bootstrap t CI can be obtained using the boot.t.ci function given in Chapter 7, or by using boot.ci after boot.
+
+To use boot.t.ci, provide a function that computes the statistic of interest. Although cor is available, it returns a correlation matrix when the argument is a data matrix. Here we need the correlation statistic.
+
+```{r}
+# Load required libraries
+library(boot)
+library(bootstrap)
+
+# Attach the 'law' data frame
+attach(law)
+
+# Define a function to compute the correlation coefficient
+cor.stat <- function(x, i = 1:NROW(x)) {
+  cor(x[i, 1], x[i, 2])
+}
+
+# Define a function to calculate the bootstrap t confidence interval
+boot.t.ci <- function(x, B = 500, R = 100, level = 0.95, statistic) {
+  x <- as.matrix(x)
+  n <- nrow(x)
+  stat <- numeric(B)
+  se <- numeric(B)
+  
+  # Define a function to compute the bootstrap standard error
+  boot.se <- function(x, R, f) {
+    x <- as.matrix(x)
+    m <- nrow(x)
+    th <- replicate(R, expr = {
+      i <- sample(1:m, size = m, replace = TRUE)
+      f(x[i, ])
+    })
+    return(sd(th))
+  }
+  
+  # Perform bootstrap sampling
+  for (b in 1:B) {
+    j <- sample(1:n, size = n, replace = TRUE)
+    y <- x[j, ]
+    stat[b] <- statistic(y)
+    se[b] <- boot.se(y, R = R, f = statistic)
+  }
+  
+  # Compute statistics and confidence interval
+  stat0 <- statistic(x)
+  t.stats <- (stat - stat0) / se
+  se0 <- sd(stat)
+  alpha <- 1 - level
+  Qt <- quantile(t.stats, c(alpha/2, 1 - alpha/2), type = 1)
+  names(Qt) <- rev(names(Qt))
+  CI <- rev(stat0 - Qt * se0)
+}
+
+# Compute the bootstrap t confidence interval for the correlation coefficient
+print(boot.t.ci(law, B = 1000, R = 25, statistic = cor.stat))
+```
+
+To use boot.ci after boot, write a function that returns both the correlation statistic and an estimate of the variance for each bootstrap sample (see cor.stat2 below). Then with boot.ci and type="stud" the variances for the studentized statistics are by default in the second position of the returned bootstrap object.
+
+```{r}
+# Define a modified cor.stat function using boot function
+cor.stat2 <- function(x, i = 1:NROW(x)) {
+  o <- boot(x[i, ], cor.stat, R = 25)  # Perform bootstrap sampling using cor.stat function
+  n <- length(i)
+  c(o$t0, var(o$t) * (n - 1) / n^2)  # Return the bootstrap estimate and variance
+}
+
+# Perform bootstrap sampling using boot function and compute confidence interval
+b <- boot(law, statistic = cor.stat2, R = 1000)  # Apply cor.stat2 as the statistic
+boot.ci(b, type = "stud")  # Compute the bootstrap confidence interval using the "stud" type
+```
+
+The confidence interval estimation is repeated below to show that the bootstrap t intervals are unstable in this example. See Efron and Tibshirani 1993 for an explanation and a better approach (transform R to normal). The confidence limits are the last two numbers.
+
+```{r}
+b <- boot(law, statistic = cor.stat2, R = 1000)  # Perform bootstrap sampling using the cor.stat2 function on the 'law' dataset
+boot.ci(b, type = "stud")$stud  # Compute the bootstrap confidence interval using the "stud" type and retrieve the 'stud' result
+
+b <- boot(law, statistic = cor.stat2, R = 1000)  # Perform another bootstrap sampling using cor.stat2 function on 'law' dataset
+boot.ci(b, type = "stud")$stud  # Compute the bootstrap confidence interval using the "stud" type and retrieve the 'stud' result
+
+b <- boot(law, statistic = cor.stat2, R = 1000)  # Perform yet another bootstrap sampling using cor.stat2 function on 'law' dataset
+boot.ci(b, type = "stud")$stud  # Compute the bootstrap confidence interval using the "stud" type and retrieve the 'stud' result
+```
+```{r}
+print(boot.t.ci(law, B = 1000, R = 25, statistic = cor.stat))  # Print the result of boot.t.ci function with the given arguments
+
+print(boot.t.ci(law, B = 1000, R = 25, statistic = cor.stat))  # Print the result of boot.t.ci function with the given arguments
+
+print(boot.t.ci(law, B = 1000, R = 25, statistic = cor.stat))  # Print the result of boot.t.ci function with the given arguments
+
+detach(law)  # Detach the 'law' dataset from the current environment
+detach(package:bootstrap)  # Detach the 'bootstrap' package from the current environment
+```
+
+The confidence intervals obtained from both methods may differ due to the random nature of bootstrap sampling. Method 1 may produce more stable results since it directly computes the bootstrap t statistics, while Method 2 uses an intermediate step of obtaining the bootstrap object before calculating the confidence interval.
+The first method, using the boot.t.ci function, provides a straightforward approach to calculate bootstrap t confidence intervals. It offers customization options and simplicity but may still exhibit instability and lack of coverage in certain cases.
+The second method, using the boot function followed by the boot.ci function, allows for more complex bootstrap analyses and provides various types of confidence intervals. However, it requires additional steps and can also suffer from instability and lack of coverage.
+
+
+
