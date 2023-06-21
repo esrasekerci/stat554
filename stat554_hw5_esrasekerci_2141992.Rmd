@@ -1,0 +1,129 @@
+---
+title: "stat_hw5_esrasekerci_2141992"
+output: html_document
+date: "2023-06-12"
+---
+
+
+# exercise 10.1
+
+
+```{r}
+sk <- function(x) {
+  xbar <- mean(x)  # Calculate the mean of x
+  m3 <- mean((x - xbar)^3)  # Calculate the third central moment of x
+  m2 <- mean((x - xbar)^2)  # Calculate the second central moment (variance) of x
+  return(m3/m2^1.5)  # Compute skewness using the formula m3/m2^1.5 and return the result
+}
+
+n <- 100  # Define the number of data points
+x <- rlnorm(n)  # Generate n random numbers from a log-normal distribution
+b1 <- abs(sk(x))  # Calculate the absolute value of the skewness of x
+sig <- sqrt(6 * (n - 2)/((n + 1) * (n + 3)))  # Calculate the standard error of skewness
+Ke <- log2(1 + b1/sig)  # Calculate Ke using the formula log2(1 + b1/sig)
+k <- nclass.Sturges(x)  # Calculate the number of bins using the Sturges' formula
+K <- round(k + Ke)  # Round the sum of k and Ke to the nearest integer to get the final number of bins
+h1 <- diff(range(x))/K  # Calculate the width of each bin for the K bins
+br1 <- min(x) + h1 * 0:K  # Calculate the bin boundaries for the K bins
+h2 <- diff(range(x))/k  # Calculate the width of each bin for the k bins
+br2 <- min(x) + h2 * 0:k  # Calculate the bin boundaries for the k bins
+c(k, Ke, K)  # Return the values of k, Ke, and K as a vector
+```
+The output from the code provides several pieces of information for comparing the density estimates obtained using Sturges' Rule and Doane's correction. The output displays the number of bins (classes) determined by Sturges' Rule, the calculated correction term (Ke), and the adjusted number of bins (K) after applying the correction.
+
+
+```{r}
+hist1 <- hist(x, breaks = br1, plot = FALSE)  # Create histogram using the skewness-corrected bin boundaries
+
+hist2 <- hist(x, breaks = br2, plot = FALSE)  # Create histogram using the Sturges' bin boundaries
+```
+
+The following codes represent the frequencies of the data points falling into each bin. The bins are defined as intervals, and the values inside the brackets indicate the interval range.
+
+```{r}
+table(cut(x, br1))  # Compute the frequencies for each bin using the skewness-corrected bin boundaries
+```
+
+```{r}
+table(cut(x, br2))  # Compute the frequencies for each bin using the Sturges' bin boundaries
+```
+In comparison, we can see that the bin intervals are slightly different between the two approaches (skewness-corrected bin boundaries and Sturges' bin boundaries), but the overall distribution and frequencies are relatively similar. Both approaches capture the general shape and distribution of the data, with higher frequencies in certain intervals and decreasing frequencies as the intervals progress.
+
+```{r}
+p <- seq(0.1, 0.9, 0.1)  # Define the deciles to evaluate
+
+Q <- qlnorm(p)  # Calculate the quantiles of the log-normal distribution
+
+d <- d1 <- d2 <- dlnorm(Q)  # Calculate the true log-normal densities at the quantiles
+
+for (i in 1:9) {
+  Qb1 <- sum(Q[i] >= br1)  # Find the bin index for the current quantile using the skewness-corrected bin boundaries
+  Qb2 <- sum(Q[i] >= br2)  # Find the bin index for the current quantile using the Sturges' bin boundaries
+  d1[i] <- hist1$density[Qb1]  # Retrieve the density estimate at the corresponding bin for the skewness-corrected histogram
+  d2[i] <- hist2$density[Qb2]  # Retrieve the density estimate at the corresponding bin for the Sturges' histogram
+}
+
+# Display the quantiles, true log-normal densities, and density estimates
+round(rbind(Q, d, d1, d2), 3)
+```
+The output obtained from the code suggests that Doane's correction does not significantly improve the density estimates, except for one of the deciles. This can be observed by comparing the density estimates (d1 and d2) with the true log-normal densities (d). The tables also provide additional insights into the binning process.
+
+First, it is noted that a large portion of the data falls into the first bin, exceeding the expected 40%. This observation holds true regardless of whether the skewness-corrected bin boundaries (br1) or Sturges' bin boundaries (br2) are used. This indicates an uneven distribution of the data across the bins and suggests a potential limitation of both binning methods.
+
+Furthermore, the presence of zero-count bins is observed, regardless of the binning method employed. This suggests that certain bins do not contain any data points, resulting in sparse areas in the histogram. These zero-count bins can affect the accuracy and reliability of the density estimates, as they indicate areas with no observed data.
+
+Overall, the findings indicate that Doane's correction does not consistently improve the density estimates, and the binning process reveals challenges such as an imbalanced distribution of data across bins and the presence of zero-count bins. These considerations highlight the limitations and potential shortcomings of binning methods in accurately representing the underlying data distribution.
+
+
+
+
+# exercise 10.4
+
+
+```{r}
+# Calculate the necessary values
+n <- length(precip)  # Number of data points
+s <- IQR(precip) / 1.348  # Estimated standard deviation based on IQR
+h <- 2.15 * s * n^(-1/5)  # Bin width determined by substituting σˆ in Normal Reference Rule
+nbins <- ceiling(diff(range(precip)) / h)  # Number of bins based on the calculated bin width
+br <- min(precip) + h * 0:nbins  # Bin boundaries
+brplus <- c(min(br) - h, max(br + h))  # Extended bin boundaries for plotting
+```
+
+```{r}
+# Create the histogram with density estimate
+histg <- hist(precip, breaks = br, freq = FALSE, main = "", xlim = brplus)  # Compute the histogram with specified bin boundaries
+vx <- histg$mids  # Extract the midpoints of each bin
+vy <- histg$density  # Extract the density estimate for each bin
+delta <- diff(vx)[1]  # Calculate the interval between adjacent midpoints
+k <- length(vx)  # Determine the number of midpoints
+vx <- vx + delta  # Shift the midpoints to align with the polygon edges
+vx <- c(vx[1] - 2 * delta, vx[1] - delta, vx)  # Add two additional points for proper polygon plotting
+vy <- c(0, vy, 0)  # Add zeros at the beginning and end of the density estimates
+polygon(vx, vy)  # Plot the frequency polygon using the calculated coordinates
+```
+```{r}
+c(h, delta) # Return the values of h (bin width) and delta (interval between midpoints)
+```
+```{r}
+length(histg$counts) # Return the number of counts in each bin
+```
+```{r}
+fpoly <- approxfun(vx, vy)  # Create an approximation function using the midpoints and density estimates
+
+integrate(fpoly, lower = min(vx), upper = max(vx))  # Integrate the approximation function over the range of midpoints
+```
+
+The output 1 with absolute error < 1.1e-14 indicates that the integration of the approximation function over the range of midpoints resulted in an estimated value of approximately 1. The absolute error, which measures the difference between the true value and the numerical approximation, is reported to be less than 1.1e-14, indicating a very small error.
+In other words, the integration suggests that the area under the density curve, as estimated by the frequency polygon density estimation and the corresponding approximation function, is close to 1. The extremely small absolute error indicates a high level of accuracy in the numerical approximation, suggesting that the estimated area is very precise.
+
+
+
+
+
+
+
+
+
+
+
